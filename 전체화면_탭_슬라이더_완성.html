@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>전체화면 탭 슬라이더</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #f4f4f4;
+      font-family: sans-serif;
+    }
+
+    .slider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      width: 80%;
+      height: 300px;
+      perspective: 1000px;
+    }
+
+    .tab {
+      position: absolute;
+      width: 250px;
+      height: 250px;
+      background: white;
+      border-radius: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 40px;
+      font-weight: bold;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+      transition: transform 0.8s ease, opacity 0.6s ease;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    .tab.center { transform: scale(1) translateX(0); z-index: 3; opacity: 1; }
+    .tab.left { transform: scale(0.8) translateX(-260px); opacity: 0.4; z-index: 2; }
+    .tab.right { transform: scale(0.8) translateX(260px); opacity: 0.4; z-index: 2; }
+    .tab.left2 { transform: scale(0.6) translateX(-550px); opacity: 0.2; z-index: 1; }
+    .tab.right2 { transform: scale(0.6) translateX(550px); opacity: 0.2; z-index: 1; }
+    .tab.left3 { transform: scale(0.4) translateX(-1100px); opacity: 0.15; z-index: 1; }
+    .tab.right3 { transform: scale(0.4) translateX(1100px); opacity: 0.15; z-index: 1; }
+    .tab.hidden { opacity: 0; transform: scale(0.5); z-index: 0; }
+
+    .tab img {
+      width: 200px;
+      height: 200px;
+      object-fit: contain;
+      margin-bottom: flex;
+    }
+
+    .nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 100px;
+      height: 100px;
+      cursor: pointer;
+      user-select: none;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+      z-index: 10;
+    }
+
+    .nav:hover { opacity: 1; }
+    .nav.left { left: 10%; }
+    .nav.right { right: 10%; }
+
+    #tabLabel {
+      position: absolute;
+      bottom: 63%;
+      font-size: 22px;
+      font-weight: bold;
+      color: #444;
+    }
+
+    .fullscreen-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: white;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .fullscreen-overlay h2 {
+      margin-bottom: 20px;
+      font-size: 28px;
+      color: #222;
+    }
+
+    .fullscreen-overlay button {
+      margin: 8px;
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      background: #1976d2;
+      color: white;
+      cursor: pointer;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 24px;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .close-btn:hover {
+      color: #222;
+      }
+      
+    @media (max-width: 768px) {
+  .slider {
+    width: 100%;
+    height: 220px;
+  }
+
+  .tab {
+    width: 180px;
+    height: 180px;
+    font-size: 24px;
+  }
+
+  .tab img {
+    width: 120px;
+    height: 120px;
+  }
+
+  .tab.left { transform: scale(0.8) translateX(-180px); }
+  .tab.right { transform: scale(0.8) translateX(180px); }
+  .tab.left2, .tab.right2, .tab.left3, .tab.right3 {
+    display: none;
+  }
+
+  .nav {
+    width: 100px;
+    height: 100px;
+  }
+
+  .fullscreen-overlay h2 {
+    font-size: 22px;
+  }
+
+  .fullscreen-overlay button {
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+}  
+      
+      
+  </style>
+</head>
+<body>
+
+  <img class="nav left" src="https://images.icon-icons.com/1673/PNG/512/arrowiosbackoutline_110927.png" onclick="prevTab()" />
+  <div class="slider" id="slider"></div>
+  <img class="nav right" src="https://images.icon-icons.com/1673/PNG/512/arrowiosforwardoutline_110852.png" onclick="nextTab()" />
+  <div id="tabLabel">1</div>
+
+  <div class="fullscreen-overlay" id="fullscreenOverlay">
+    <div class="close-btn" onclick="closeFullscreen()">✕</div>
+    <h2 id="fullscreenTitle">1</h2>
+    <div id="fullscreenButtons"></div>
+    <iframe id="fullscreenIframe" style="display:none; width:100%; height:100%; border:none;"></iframe>
+  <button id="backButton" style="display:none; position:absolute; top:20px; right:60px; font-size:16px; ">← 뒤로가기</button>
+</div>
+
+  
+  
+
+  <!-- URL 편집 모달 -->
+  
+  <div id="urlEditModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:30px; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.2); z-index:2000;">
+  <h3 style="text-align: center; font-size: 20px;">URL 수정</h3>
+  <label>탭 URL</label><br>
+  <input type="text" id="urlInput" style="width:90%; padding: 5px; margin: 5px; font-size: 14px;"><br>
+  <label>이미지 URL</label><br>
+  <input type="text" id="imgInput" style="width:90%; padding: 5px; margin: 5px; font-size: 14px;"><br>
+  <button onclick="saveUrl()">저장</button>
+  <button onclick="closeUrlEditModal()">취소</button>
+</div>
+
+  <script>
+    const tabNames = ["Recipe Manager", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+    let tabImages = JSON.parse(localStorage.getItem("tabImages")) || [
+      "https://i.pinimg.com/736x/9e/d2/27/9ed227313d223ad1c6899f50d5138185.jpg",
+      "https://w7.pngwing.com/pngs/960/228/png-transparent-google-chrome-extension-web-browser-browser-extension-chrome-web-store-google-logo-google-chrome-chrome-os-thumbnail.png",
+      "https://cdn-icons-png.flaticon.com/512/616/616408.png",
+      "https://cdn-icons-png.flaticon.com/512/686/686589.png",
+      "https://cdn-icons-png.flaticon.com/512/1170/1170627.png",
+      "https://cdn-icons-png.flaticon.com/512/3144/3144456.png",
+      "https://cdn-icons-png.flaticon.com/512/942/942748.png",
+      "https://cdn-icons-png.flaticon.com/512/2202/2202112.png",
+      "https://cdn-icons-png.flaticon.com/512/189/189001.png",
+      "https://cdn-icons-png.flaticon.com/512/747/747376.png"
+    ];
+
+    let urls = JSON.parse(localStorage.getItem("tabUrls")) || [
+      "https://koon1281.github.io/my-html-page2/",
+      "https://mincho-dev.github.io/recipe-app/prep.html",
+      "https://mincho-dev.github.io/recipe-app/ingredients.html",
+      "https://mincho-dev.github.io/recipe-app/converter.html",
+      "https://mincho-dev.github.io/recipe-app/settings.html",
+      "https://mincho-dev.github.io/recipe-app/tab6.html",
+      "https://mincho-dev.github.io/recipe-app/tab7.html",
+      "https://mincho-dev.github.io/recipe-app/tab8.html",
+      "https://mincho-dev.github.io/recipe-app/tab9.html",
+      "https://mincho-dev.github.io/recipe-app/tab10.html"
+    ];
+
+    let currentIndex = 0;
+    const slider = document.getElementById("slider");
+    const tabLabel = document.getElementById("tabLabel");
+    const overlay = document.getElementById("fullscreenOverlay");
+    const fullscreenTitle = document.getElementById("fullscreenTitle");
+    const fullscreenButtons = document.getElementById("fullscreenButtons");
+    let editingTabIndex = null;
+    let tabElements = [];
+
+    function initTabs() {
+      for (let i = 0; i < tabNames.length; i++) {
+        const tab = document.createElement("div");
+        tab.className = "tab hidden";
+
+        const img = document.createElement("img");
+        img.src = tabImages[i];
+        tab.appendChild(img);
+
+        const settingsIcon = document.createElement("img");
+settingsIcon.src = "https://cdn-icons-png.flaticon.com/512/2099/2099058.png"; // 연필 아이콘
+settingsIcon.style.position = "absolute";
+settingsIcon.style.top = "10px";
+settingsIcon.style.right = "10px";
+settingsIcon.style.width = "24px";
+settingsIcon.style.height = "24px";
+settingsIcon.style.cursor = "pointer";
+settingsIcon.title = "URL 설정";
+settingsIcon.onclick = (e) => {
+  e.stopPropagation();
+  openUrlEditModal(i);
+};
+tab.appendChild(settingsIcon);
+
+        tab.onclick = () => {
+          if (i === currentIndex) {
+    if (i === 0) {
+      openFullscreen(i);
+            }
+          }
+        };
+
+        slider.appendChild(tab);
+        tabElements.push(tab);
+      }
+      applyTabClasses();
+    }
+
+    function applyTabClasses() {
+      tabElements.forEach((tab, i) => {
+        const total = tabNames.length;
+        tab.className = "tab hidden";
+        if (i === currentIndex) tab.className = "tab center";
+        else if (i === (currentIndex + 1) % total) tab.className = "tab right";
+        else if (i === (currentIndex + 2) % total) tab.className = "tab right2";
+        else if (i === (currentIndex + 3) % total) tab.className = "tab right3";
+        else if (i === (currentIndex - 1 + total) % total) tab.className = "tab left";
+        else if (i === (currentIndex - 2 + total) % total) tab.className = "tab left2";
+        else if (i === (currentIndex - 3 + total) % total) tab.className = "tab left3";
+      });
+      tabLabel.innerText = `${tabNames[currentIndex]}`;
+    }
+
+    function nextTab() {
+      currentIndex = (currentIndex + 1) % tabNames.length;
+      applyTabClasses();
+    }
+
+    function prevTab() {
+      currentIndex = (currentIndex - 1 + tabNames.length) % tabNames.length;
+      applyTabClasses();
+    }
+
+    function openFullscreen(index) {
+  overlay.style.display = "flex";
+  fullscreenTitle.innerText = `${tabNames[index]}`;
+  fullscreenIframe.style.display = "block";
+  fullscreenButtons.style.display = "none";
+  backButton.style.display = "none";
+  document.body.style.overflow = "hidden";
+
+  fullscreenIframe.src = urls[index];  // ✅ 기존 전역 배열 활용
+}
+
+
+const fullscreenIframe = document.getElementById("fullscreenIframe");
+const backButton = document.getElementById("backButton");
+
+backButton.onclick = () => {
+  fullscreenIframe.style.display = "none";
+  fullscreenButtons.style.display = "flex";
+  backButton.style.display = "none";
+};
+
+
+    function closeFullscreen() {
+      overlay.style.display = "none";
+    }
+
+    function openUrlEditModal(index) {
+  editingTabIndex = index;
+  document.getElementById("urlInput").value = urls[index];
+  document.getElementById("imgInput").value = tabImages[index];
+  document.getElementById("urlEditModal").style.display = "block";
+}
+
+    function closeUrlEditModal() {
+      document.getElementById("urlEditModal").style.display = "none";
+    }
+
+    function saveUrl() {
+  const newUrl = document.getElementById("urlInput").value;
+  const newImg = document.getElementById("imgInput").value;
+  if (editingTabIndex !== null && newUrl && newImg) {
+    urls[editingTabIndex] = newUrl;
+    tabImages[editingTabIndex] = newImg;
+    localStorage.setItem("tabUrls", JSON.stringify(urls));
+    localStorage.setItem("tabImages", JSON.stringify(tabImages));
+    tabElements[editingTabIndex].querySelector("img").src = newImg; // 즉시 반영
+  }
+  closeUrlEditModal();
+}
+    initTabs();
+  </script>
+</body>
+</html>
+
+
+
