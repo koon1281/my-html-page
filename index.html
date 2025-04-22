@@ -37,7 +37,7 @@
       font-size: 40px;
       font-weight: bold;
       box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-      transition: transform 0.8s ease, opacity 0.6s ease;
+      transition: transform 0.8s ease, opacity 0.5s ease;
       flex-direction: column;
       overflow: hidden;
       padding: 10px;
@@ -97,7 +97,7 @@
       align-items: center;
       justify-content: center;
       z-index: 1000;
-      animation: fadeIn 0.3s ease;
+      animation: fadeIn 0.8s ease;
     }
 
     .fullscreen-header {
@@ -155,6 +155,7 @@
       font-size: 40px;
       cursor: pointer;
       color: #999;
+      
     }
 
     .close-btn:hover {
@@ -226,7 +227,7 @@
   <img class="nav left" src="https://images.icon-icons.com/1673/PNG/512/arrowiosbackoutline_110927.png" onclick="prevTab()" />
   <div class="slider" id="slider"></div>
   <img class="nav right" src="https://images.icon-icons.com/1673/PNG/512/arrowiosforwardoutline_110852.png" onclick="nextTab()" />
-  <div id="tabLabel">1</div>
+<div id="tabLabel">1</div>
 
   <div class="fullscreen-overlay" id="fullscreenOverlay">
   <div class="fullscreen-header">
@@ -244,7 +245,9 @@
   <!-- URL 편집 모달 -->
   
   <div id="urlEditModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:30px; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.2); z-index:2000;">
-  <h3 style="text-align: center; font-size: 20px;">URL 수정</h3>
+  <h3 style="text-align: center; font-size: 20px;">탭 설정</h3>
+  <label>탭 이름</label><br>
+  <input type="text" id="nameInput" style="width:90%; padding: 5px; margin: 5px; font-size: 14px;"><br>
   <label>탭 URL</label><br>
   <input type="text" id="urlInput" style="width:90%; padding: 5px; margin: 5px; font-size: 14px;"><br>
   <label>이미지 URL</label><br>
@@ -254,7 +257,7 @@
 </div>
 
   <script>
-    const tabNames = ["Recipe Manager", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+    let tabNames = JSON.parse(localStorage.getItem("tabNames")) || ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
     let tabImages = JSON.parse(localStorage.getItem("tabImages")) || [
       "https://i.pinimg.com/736x/9e/d2/27/9ed227313d223ad1c6899f50d5138185.jpg",
       "https://",
@@ -353,7 +356,6 @@ tab.appendChild(settingsIcon);
 
     function openFullscreen(index) {
   overlay.style.display = "flex";
-  fullscreenTitle.innerText = `${tabNames[index]}`;
   fullscreenIframe.style.display = "block";
   fullscreenButtons.style.display = "none";
   backButton.style.display = "none";
@@ -379,24 +381,34 @@ backButton.onclick = () => {
 
     function openUrlEditModal(index) {
   editingTabIndex = index;
+  document.getElementById("nameInput").value = tabNames[index];
   document.getElementById("urlInput").value = urls[index];
   document.getElementById("imgInput").value = tabImages[index];
   document.getElementById("urlEditModal").style.display = "block";
 }
+
 
     function closeUrlEditModal() {
       document.getElementById("urlEditModal").style.display = "none";
     }
 
     function saveUrl() {
+  const newName = document.getElementById("nameInput").value;
   const newUrl = document.getElementById("urlInput").value;
   const newImg = document.getElementById("imgInput").value;
-  if (editingTabIndex !== null && newUrl && newImg) {
+
+  if (editingTabIndex !== null && newUrl && newImg && newName) {
+    tabNames[editingTabIndex] = newName;
     urls[editingTabIndex] = newUrl;
     tabImages[editingTabIndex] = newImg;
+
+    localStorage.setItem("tabNames", JSON.stringify(tabNames));
     localStorage.setItem("tabUrls", JSON.stringify(urls));
     localStorage.setItem("tabImages", JSON.stringify(tabImages));
-    tabElements[editingTabIndex].querySelector("img").src = newImg; // 즉시 반영
+
+    tabElements[editingTabIndex].querySelector("img").src = newImg;
+    applyTabClasses(); // 이름 반영
+    
   }
   closeUrlEditModal();
 }
