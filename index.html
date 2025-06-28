@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>필름 재단 배치기</title>
+  <style>
+    :root {
+      --main-color: #007acc;
+      --bg-color: #f4f4f4;
+      --accent-color: rgba(0, 150, 255, 0.7);
+      --text-color: #333;
+      --font-size: 16px;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+    h2 {
+      margin-bottom: 16px;
+    }
+    #controls, #rectList {
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    label, button {
+      font-size: var(--font-size);
+    }
+    input[type="number"], input[type="text"] {
+      font-size: var(--font-size);
+      padding: 5px;
+      width: 100px;
+    }
+    button {
+      background-color: var(--main-color);
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #005f99;
+    }
+    #canvasWrapper {
+      position: relative;
+      border: 2px solid #000;
+      background-color: #fff;
+      background-image: linear-gradient(to right, #ccc 1px, transparent 1px),
+                        linear-gradient(to bottom, #ccc 1px, transparent 1px);
+      background-size: 30px 30px;
+      transform-origin: top left;
+      overflow: auto;
+      max-width: none;
+      width: fit-content;
+      height: fit-content;
+    }
+    .rect {
+      position: absolute;
+      background-color: var(--accent-color);
+      border: 1px solid var(--main-color);
+      text-align: center;
+      font-weight: bold;
+      color: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2px;
+      overflow: hidden;
+    }
+    .rect span {
+      display: block;
+      width: 100%;
+      word-break: break-word;
+      line-height: 1.1;
+    }
+    .rect-input {
+      border: 1px solid #ccc;
+      background-color: #fff;
+      padding: 10px;
+      border-radius: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .delete-btn {
+      color: red;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    @media (max-width: 600px) {
+      input[type="number"], input[type="text"] {
+        width: 80px;
+      }
+      #controls {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .rect-input {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h2>필름 재단 배치기 (단위: mm)</h2>
+  <div id="controls">
+    <label>전체 면적 너비(mm): <input type="number" id="areaWidth" value="1200"></label>
+    <label>전체 면적 높이(mm): <input type="number" id="areaHeight" value="10000"></label>
+    <button onclick="addRectInput()">사각형 추가</button>
+    <button onclick="placeRectangles()">배치</button>
+    <button onclick="zoomCanvas(1.2)">확대</button>
+    <button onclick="zoomCanvas(0.8)">축소</button>
+  </div>
+
+  <div id="rectList"></div>
+  <div style="overflow: auto; width: 100%; height: 80vh; border: 1px solid #ccc;">
+    <div id="canvasWrapper"></div>
+  </div>
+
+  <script>
+    const mmToPx = 3;
+    let scale = 1;
+    const canvas = document.getElementById("canvasWrapper");
+    let placedRects = [];
+
+    function addRectInput() {
+      const wrapper = document.createElement("div");
+      wrapper.className = "rect-input";
+      wrapper.innerHTML = \`
+        명칭: <input type="text" class="name" placeholder="예: Box">
+        너비(mm): <input type="number" class="width">
+        높이(mm): <input type="number" class="height">
+        수량: <input type="number" class="count" value="1">
+        회전허용: <input type="checkbox" class="rotate">
+        <span class="delete-btn" onclick="this.parentNode.remove()">[삭제]</span>
+      \`;
+      document.getElementById("rectList").appendChild(wrapper);
+    }
+
+    function zoomCanvas(factor) {
+      scale *= factor;
+      canvas.style.transform = \`scale(\${scale})\`;
+    }
+
+    function placeRectangles() {
+      canvas.innerHTML = "";
+      placedRects = [];
+      const inputs = document.querySelectorAll(".rect-input");
+      let areaW = parseInt(document.getElementById("areaWidth").value) * mmToPx;
+      let areaH = parseInt(document.getElementById("areaHeight").value) * mmToPx;
+
+      canvas.style.width = areaW + "px";
+      canvas.style.height = areaH + "px";
+
+      let rectangles = [];
+      inputs.forEach(input => {
+        const name = input.querySelector(".name").value.trim();
+        const w = parseInt(input.querySelector(".width").value);
+        const h = parseInt(input.querySelector(".height").value);
+        const count = parseInt(input.querySelector(".count").value);
+        const rotate = input.querySelector(".rotate").checked;
+        if (w > 0 && h > 0 && count > 0) {
+          for (let i = 0; i < count; i++) {
+            rectangles.push({ name, w, h, rotate });
+          }
+        }
+      });
+
+      rectangles.sort((a, b) => (b.w * b.h) - (a.w * a.h));
+
+      rectangles.forEach(rect => {
+        let w = rect.w * mmToPx;
+        let h = rect.h * mmToPx;
+        let rotated = false;
+        let pos = findPosition(w, h, areaW, areaH);
+        if (!pos && rect.rotate) {
+          [w, h] = [h, w];
+          rotated = true;
+          pos = findPosition(w, h, areaW, areaH);
+        }
+        if (pos) {
+          const div = document.createElement("div");
+          div.className = "rect";
+          div.style.left = pos.x + "px";
+          div.style.top = pos.y + "px";
+          div.style.width = w + "px";
+          div.style.height = h + "px";
+
+          const fontSize = Math.max(8, Math.min(w, h) / 6);
+          const label = document.createElement("span");
+          label.style.fontSize = fontSize + "px";
+          label.innerText = \`\${rect.name}\n(\${Math.round(w/mmToPx)} x \${Math.round(h/mmToPx)})\`;
+
+          div.appendChild(label);
+          canvas.appendChild(div);
+          placedRects.push({ x: pos.x, y: pos.y, w, h });
+        }
+      });
+    }
+
+    function findPosition(w, h, areaW, areaH) {
+      for (let y = 0; y <= areaH - h; y++) {
+        for (let x = 0; x <= areaW - w; x++) {
+          if (!checkCollision(x, y, w, h)) return { x, y };
+        }
+      }
+      return null;
+    }
+
+    function checkCollision(x, y, w, h) {
+      return placedRects.some(r =>
+        x < r.x + r.w && x + w > r.x &&
+        y < r.y + r.h && y + h > r.y
+      );
+    }
+  </script>
+</body>
+</html>
