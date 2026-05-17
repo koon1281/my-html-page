@@ -1,231 +1,219 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>필름 재단 배치기</title>
-  <style>
-    :root {
-      --main-color: #007acc;
-      --bg-color: #f4f4f4;
-      --accent-color: rgba(0, 150, 255, 0.7);
-      --text-color: #333;
-      --font-size: 16px;
-    }
-    * {
-      box-sizing: border-box;
-    }
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      margin: 0;
-      padding: 20px;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-    }
-    h2 {
-      margin-bottom: 16px;
-    }
-    #controls, #rectList {
-      margin-bottom: 20px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
-    label, button {
-      font-size: var(--font-size);
-    }
-    input[type="number"], input[type="text"] {
-      font-size: var(--font-size);
-      padding: 5px;
-      width: 100px;
-    }
-    button {
-      background-color: var(--main-color);
-      color: #fff;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    button:hover {
-      background-color: #005f99;
-    }
-    #canvasWrapper {
-      position: relative;
-      border: 2px solid #000;
-      background-color: #fff;
-      background-image: linear-gradient(to right, #ccc 1px, transparent 1px),
-                        linear-gradient(to bottom, #ccc 1px, transparent 1px);
-      background-size: 30px 30px;
-      transform-origin: top left;
-      overflow: auto;
-      max-width: none;
-      width: fit-content;
-      height: fit-content;
-    }
-    .rect {
-      position: absolute;
-      background-color: var(--accent-color);
-      border: 1px solid var(--main-color);
-      text-align: center;
-      font-weight: bold;
-      color: #000;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 2px;
-      overflow: hidden;
-    }
-    .rect span {
-      display: block;
-      width: 100%;
-      word-break: break-word;
-      line-height: 1.1;
-    }
-    .rect-input {
-      border: 1px solid #ccc;
-      background-color: #fff;
-      padding: 10px;
-      border-radius: 6px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-    .delete-btn {
-      color: red;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    @media (max-width: 600px) {
-      input[type="number"], input[type="text"] {
-        width: 80px;
-      }
-      #controls {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-      .rect-input {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>필름 재단 배치기</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; background:#f4f4f4; }
+  #controls, #rectList { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px; align-items:center; }
+  .rect-input { background:#fff; border:1px solid #ccc; border-radius:6px; padding:8px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  input[type="number"], input[type="text"] { width:100px; padding:4px; }
+  button { padding:8px 12px; border:none; background:#007acc; color:#fff; border-radius:4px; cursor:pointer; }
+  .delete-btn { color:red; cursor:pointer; font-weight:bold; }
+  #viewport { overflow:auto; width:100%; height:80vh; border:1px solid #ccc; background:#fff; }
+  #canvasContainer { position:relative; transform-origin: top left; }
+  #canvasWrapper {
+    position:absolute; left:40px; top:20px;
+    border:2px solid #000;
+    background-image:
+      linear-gradient(to right, #ddd 1px, transparent 1px),
+      linear-gradient(to bottom, #ddd 1px, transparent 1px);
+    background-size: 30px 30px;
+    background-color:#fff;
+  }
+  .rect {
+    position:absolute; background:rgba(0,150,255,0.5); border:1px solid #007acc;
+    display:flex; justify-content:center; align-items:center; text-align:center; overflow:hidden;
+  }
+  .rect span { white-space:pre-line; line-height:1.1; }
+  .ruler-label {
+    position:absolute; font-size:10px; color:#666;
+  }
+</style>
 </head>
 <body>
-  <h2>필름 재단 배치기 (단위: mm)</h2>
-  <div id="controls">
-    <label>전체 면적 너비(mm): <input type="number" id="areaWidth" value="1200"></label>
-    <label>전체 면적 높이(mm): <input type="number" id="areaHeight" value="10000"></label>
-    <button onclick="addRectInput()">사각형 추가</button>
-    <button onclick="placeRectangles()">배치</button>
-    <button onclick="zoomCanvas(1.2)">확대</button>
-    <button onclick="zoomCanvas(0.8)">축소</button>
-  </div>
+<h2>필름 재단 배치기 (단위: mm)</h2>
 
-  <div id="rectList"></div>
-  <div style="overflow: auto; width: 100%; height: 80vh; border: 1px solid #ccc;">
+<div id="controls">
+  <label>전체 너비(mm): <input type="number" id="areaWidth" value="1200"></label>
+  <label>전체 높이(mm): <input type="number" id="areaHeight" value="10000"></label>
+  <button onclick="addRectInput()">사각형 추가</button>
+  <button onclick="placeRectangles()">배치</button>
+  <button onclick="zoomCanvas(1.2)">확대</button>
+  <button onclick="zoomCanvas(0.8)">축소</button>
+  <input type="file" id="excelFile" accept=".xlsx,.xls">
+  <button onclick="importExcel()">엑셀 불러오기</button>
+</div>
+
+<div id="rectList"></div>
+
+<div id="viewport">
+  <div id="canvasContainer">
     <div id="canvasWrapper"></div>
   </div>
+</div>
 
-  <script>
-    const mmToPx = 3;
-    let scale = 1;
-    const canvas = document.getElementById("canvasWrapper");
-    let placedRects = [];
+<script>
+const mmToPx = 3;
+let scale = 1;
+const canvas = document.getElementById('canvasWrapper');
+const container = document.getElementById('canvasContainer');
+let placedRects = [];
 
-    function addRectInput() {
-      const wrapper = document.createElement("div");
-      wrapper.className = "rect-input";
-      wrapper.innerHTML = `
-        명칭: <input type="text" class="name" placeholder="예: Box">
-        너비(mm): <input type="number" class="width">
-        높이(mm): <input type="number" class="height">
-        수량: <input type="number" class="count" value="1">
-        회전허용: <input type="checkbox" class="rotate">
-        <span class="delete-btn" onclick="this.parentNode.remove()">[삭제]</span>
-      `;
-      document.getElementById("rectList").appendChild(wrapper);
+function addRectInput(name='', width='', height='', count=1, rotate=false) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'rect-input';
+  wrapper.innerHTML = `
+    명칭: <input type="text" class="name" value="${name}">
+    너비(mm): <input type="number" class="width" value="${width}">
+    높이(mm): <input type="number" class="height" value="${height}">
+    수량: <input type="number" class="count" value="${count}">
+    회전허용: <input type="checkbox" class="rotate" ${rotate ? 'checked' : ''}>
+    <span class="delete-btn" onclick="this.parentNode.remove()">[삭제]</span>
+  `;
+  document.getElementById('rectList').appendChild(wrapper);
+}
+
+function importExcel() {
+  const file = document.getElementById('excelFile').files[0];
+  if (!file) {
+    alert('엑셀 파일을 선택하세요.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const workbook = XLSX.read(e.target.result, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+    rows.forEach(row => {
+      const name = row['명칭'] || '';
+      const width = row['너비'] || row['너비(mm)'] || '';
+      const height = row['높이'] || row['높이(mm)'] || '';
+      const count = row['수량'] || 1;
+      const rotate = String(row['회전허용']).toLowerCase();
+      const rotateFlag = ['1','true','yes','y','o','허용'].includes(rotate);
+      if (width && height) addRectInput(name, width, height, count, rotateFlag);
+    });
+    alert('엑셀 데이터를 불러왔습니다.');
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function zoomCanvas(factor) {
+  scale *= factor;
+  container.style.transform = `scale(${scale})`;
+}
+
+function drawRulers(areaWmm, areaHmm) {
+  container.querySelectorAll('.ruler-label').forEach(el => el.remove());
+
+  // 가로 눈금 (10mm 간격)
+  for (let x = 0; x <= areaWmm; x += 10) {
+    const label = document.createElement('div');
+    label.className = 'ruler-label';
+    label.style.left = (40 + x * mmToPx - 8) + 'px';
+    label.style.top = '0px';
+    label.textContent = x;
+    container.appendChild(label);
+  }
+
+  // 세로 눈금 (10mm 간격)
+  for (let y = 0; y <= areaHmm; y += 10) {
+    const label = document.createElement('div');
+    label.className = 'ruler-label';
+    label.style.left = '0px';
+    label.style.top = (20 + y * mmToPx - 5) + 'px';
+    label.textContent = y;
+    container.appendChild(label);
+  }
+}
+
+function placeRectangles() {
+  canvas.innerHTML = '';
+  placedRects = [];
+
+  const areaWmm = parseInt(document.getElementById('areaWidth').value);
+  const areaHmm = parseInt(document.getElementById('areaHeight').value);
+  const areaW = areaWmm * mmToPx;
+  const areaH = areaHmm * mmToPx;
+
+  canvas.style.width = areaW + 'px';
+  canvas.style.height = areaH + 'px';
+
+  drawRulers(areaWmm, areaHmm);
+
+  let rectangles = [];
+  document.querySelectorAll('.rect-input').forEach(input => {
+    const name = input.querySelector('.name').value.trim();
+    const w = parseInt(input.querySelector('.width').value);
+    const h = parseInt(input.querySelector('.height').value);
+    const count = parseInt(input.querySelector('.count').value);
+    const rotate = input.querySelector('.rotate').checked;
+    if (w > 0 && h > 0 && count > 0) {
+      for (let i = 0; i < count; i++) rectangles.push({ name, w, h, rotate });
+    }
+  });
+
+  rectangles.sort((a, b) => (b.w * b.h) - (a.w * a.h));
+
+  rectangles.forEach(rect => {
+    let w = rect.w * mmToPx;
+    let h = rect.h * mmToPx;
+    let pos = findPosition(w, h, areaW, areaH);
+
+    if (!pos && rect.rotate) {
+      [w, h] = [h, w];
+      pos = findPosition(w, h, areaW, areaH);
     }
 
-    function zoomCanvas(factor) {
-      scale *= factor;
-      canvas.style.transform = `scale(${scale})`;
+    if (pos) {
+      const div = document.createElement('div');
+      div.className = 'rect';
+      div.style.left = pos.x + 'px';
+      div.style.top = pos.y + 'px';
+      div.style.width = w + 'px';
+      div.style.height = h + 'px';
+
+      const span = document.createElement('span');
+      span.style.fontSize = Math.max(8, Math.min(w, h) / 6) + 'px';
+      span.textContent = `${rect.name}\n(${Math.round(w/mmToPx)} x ${Math.round(h/mmToPx)})`;
+
+      div.appendChild(span);
+      canvas.appendChild(div);
+      placedRects.push({ x: pos.x, y: pos.y, w, h });
     }
+  });
+}
 
-    function placeRectangles() {
-      canvas.innerHTML = "";
-      placedRects = [];
-      const inputs = document.querySelectorAll(".rect-input");
-      let areaW = parseInt(document.getElementById("areaWidth").value) * mmToPx;
-      let areaH = parseInt(document.getElementById("areaHeight").value) * mmToPx;
-
-      canvas.style.width = areaW + "px";
-      canvas.style.height = areaH + "px";
-
-      let rectangles = [];
-      inputs.forEach(input => {
-        const name = input.querySelector(".name").value.trim();
-        const w = parseInt(input.querySelector(".width").value);
-        const h = parseInt(input.querySelector(".height").value);
-        const count = parseInt(input.querySelector(".count").value);
-        const rotate = input.querySelector(".rotate").checked;
-        if (w > 0 && h > 0 && count > 0) {
-          for (let i = 0; i < count; i++) {
-            rectangles.push({ name, w, h, rotate });
-          }
-        }
-      });
-
-      rectangles.sort((a, b) => (b.w * b.h) - (a.w * a.h));
-
-      rectangles.forEach(rect => {
-        let w = rect.w * mmToPx;
-        let h = rect.h * mmToPx;
-        let rotated = false;
-        let pos = findPosition(w, h, areaW, areaH);
-        if (!pos && rect.rotate) {
-          [w, h] = [h, w];
-          rotated = true;
-          pos = findPosition(w, h, areaW, areaH);
-        }
-        if (pos) {
-          const div = document.createElement("div");
-          div.className = "rect";
-          div.style.left = pos.x + "px";
-          div.style.top = pos.y + "px";
-          div.style.width = w + "px";
-          div.style.height = h + "px";
-
-          const fontSize = Math.max(8, Math.min(w, h) / 6);
-          const label = document.createElement("span");
-          label.style.fontSize = fontSize + "px";
-          label.innerText = `${rect.name}\n(${Math.round(w/mmToPx)} x ${Math.round(h/mmToPx)})`;
-
-          div.appendChild(label);
-          canvas.appendChild(div);
-          placedRects.push({ x: pos.x, y: pos.y, w, h });
-        }
-      });
+function findPosition(w, h, areaW, areaH) {
+  for (let y = 0; y <= areaH - h; y++) {
+    for (let x = 0; x <= areaW - w; x++) {
+      if (!checkCollision(x, y, w, h)) return { x, y };
     }
+  }
+  return null;
+}
 
-    function findPosition(w, h, areaW, areaH) {
-      for (let y = 0; y <= areaH - h; y++) {
-        for (let x = 0; x <= areaW - w; x++) {
-          if (!checkCollision(x, y, w, h)) return { x, y };
-        }
-      }
-      return null;
-    }
+function checkCollision(x, y, w, h) {
+  return placedRects.some(r =>
+    x < r.x + r.w &&
+    x + w > r.x &&
+    y < r.y + r.h &&
+    y + h > r.y
+  );
+}
 
-    function checkCollision(x, y, w, h) {
-      return placedRects.some(r =>
-        x < r.x + r.w && x + w > r.x &&
-        y < r.y + r.h && y + h > r.y
-      );
-    }
-  </script>
+  // 페이지를 벗어나거나 새로고침할 때 확인창 표시
+window.addEventListener('beforeunload', function (e) {
+  // 최신 브라우저에서는 사용자 지정 문구는 표시되지 않고
+  // 브라우저 기본 메시지와 함께 "이 페이지를 떠나시겠습니까?" 형태의
+  // 확인창이 나타납니다.
+  e.preventDefault();
+  e.returnValue = '';
+});
+</script>
 </body>
 </html>
