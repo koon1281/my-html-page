@@ -6,6 +6,9 @@
 <title>필름 재단 배치기</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <style>
+  html, body {
+    overscroll-behavior-y: contain;
+  }
   body { font-family: Arial, sans-serif; margin: 20px; background:#f4f4f4; }
   #controls, #rectList { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px; align-items:center; }
   .rect-input { background:#fff; border:1px solid #ccc; border-radius:6px; padding:8px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
@@ -45,6 +48,7 @@
   <button onclick="zoomCanvas(0.8)">축소</button>
   <input type="file" id="excelFile" accept=".xlsx,.xls">
   <button onclick="importExcel()">엑셀 불러오기</button>
+  <button onclick="clearSavedState()">저장값 초기화</button>
 </div>
 
 <div id="rectList"></div>
@@ -206,14 +210,81 @@ function checkCollision(x, y, w, h) {
   );
 }
 
-  // 페이지를 벗어나거나 새로고침할 때 확인창 표시
+// ===== 모바일 새로고침 대응: 자동 저장 / 자동 복원 =====
+const STORAGE_KEY = 'film_cutting_layout_autosave_v1';
+
+function collectState() {
+  const rects = [];
+  document.querySelectorAll('.rect-input').forEach(input => {
+    rects.push({
+      name: input.querySelector('.name').value || '',
+      width: input.querySelector('.width').value || '',
+      height: input.querySelector('.height').value || '',
+      count: input.querySelector('.count').value || '1',
+      rotate: input.querySelector('.rotate').checked || false
+    });
+  });
+
+  return {
+    areaWidth: document.getElementById('areaWidth').value,
+    areaHeight: document.getElementById('areaHeight').value,
+    rects
+  };
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(collectState()));
+}
+
+function restoreState() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (!saved) return;
+
+  try {
+    const state = JSON.parse(saved);
+    if (state.areaWidth) document.getElementById('areaWidth').value = state.areaWidth;
+    if (state.areaHeight) document.getElementById('areaHeight').value = state.areaHeight;
+
+    const rectList = document.getElementById('rectList');
+    rectList.innerHTML = '';
+
+    if (Array.isArray(state.rects)) {
+      state.rects.forEach(r => {
+        addRectInput(r.name, r.width, r.height, r.count, r.rotate);
+      });
+    }
+
+    if (state.rects && state.rects.length > 0) {
+      placeRectangles();
+    }
+  } catch (err) {
+    console.warn('자동 복원 실패:', err);
+  }
+}
+
+function clearSavedState() {
+  if (confirm('저장된 입력값을 초기화할까요?')) {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  }
+}
+
+// 입력값이 바뀔 때마다 자동 저장
+document.addEventListener('input', saveState);
+document.addEventListener('change', saveState);
+
+// PC 브라우저용 새로고침/닫기 확인창
 window.addEventListener('beforeunload', function (e) {
-  // 최신 브라우저에서는 사용자 지정 문구는 표시되지 않고
-  // 브라우저 기본 메시지와 함께 "이 페이지를 떠나시겠습니까?" 형태의
-  // 확인창이 나타납니다.
+  saveState();
+
+  // 모바일 크롬에서는 이 창이 표시되지 않을 수 있음
   e.preventDefault();
   e.returnValue = '';
 });
+
+// 새로고침 후 자동 복원
+window.addEventListener('DOMContentLoaded', restoreState);
+
 </script>
 </body>
 </html>
